@@ -58,10 +58,55 @@ def _preprocess_data(data):
     # ---------------------------------------------------------------
 
     # ----------- Replace this code with your own preprocessing steps --------
-    predict_vector = feature_vector_df[['Madrid_wind_speed','Bilbao_rain_1h','Valencia_wind_speed']]
+    feature_vector_df['time'] = pd.to_datetime(feature_vector_df['time'])
+     # day
+    feature_vector_df['Day'] = feature_vector_df['time'].dt.day
+    # month
+    feature_vector_df['Month'] = feature_vector_df['time'].dt.month
+    # year
+    feature_vector_df['Year'] = feature_vector_df['time'].dt.year
+    #    hour
+    feature_vector_df['Start_hour'] = feature_vector_df['time'].dt.hour
+    # minute
+    feature_vector_df['Start_minute'] = feature_vector_df['time'].dt.minute
+    # second
+    feature_vector_df['Start_second'] = feature_vector_df['time'].dt.second
+    # Monday is 0 and Sunday is 6
+    feature_vector_df['Start_weekday'] = feature_vector_df['time'].dt.weekday
+    # week of the year
+    feature_vector_df['Start_week_of_year'] = feature_vector_df['time'].dt.week
+    # duration
+    feature_vector_df['Valencia_wind_deg']=feature_vector_df['Valencia_wind_deg'].str.extract('(\d+)')
+    feature_vector_df['Valencia_wind_deg'] = pd.to_numeric(feature_vector_df['Valencia_wind_deg'])
+    feature_vector_df['Seville_pressure']=feature_vector_df['Seville_pressure'].str.extract('(\d+)')
+    feature_vector_df['Seville_pressure'] = pd.to_numeric(feature_vector_df['Seville_pressure'])
+    feature_vector_df = feature_vector_df.fillna(value=feature_vector_df['Valencia_pressure'].mean())
+    #removing the unnamed column
+    feature_vector_df.drop('Unnamed: 0', inplace =True, axis=1)
+
+    #dropping column that have only zero values
+    feature_vector_df.drop(columns =['Valencia_snow_3h', 'Bilbao_snow_3h', 'Seville_rain_3h', 'Barcelona_rain_3h'], inplace= True)
+    new_feature_optimal =['Madrid_wind_speed', 'Valencia_wind_deg', 'Valencia_wind_speed',
+       'Seville_humidity', 'Madrid_humidity', 'Bilbao_wind_speed',
+       'Bilbao_wind_deg', 'Barcelona_wind_speed', 'Barcelona_wind_deg',
+       'Seville_wind_speed', 'Seville_pressure', 'Barcelona_pressure',
+       'Barcelona_weather_id', 'Bilbao_pressure', 'Valencia_pressure',
+       'Seville_temp_max', 'Madrid_pressure', 'Bilbao_weather_id',
+       'Valencia_humidity', 'Valencia_temp_min', 'Madrid_temp_max',
+       'Barcelona_temp', 'Bilbao_temp_min', 'Barcelona_temp_min',
+       'Bilbao_temp_max', 'Seville_temp_min', 'Madrid_temp_min', 'Year',
+       'Month', 'Day', 'Start_hour', 'Start_weekday', 'Start_week_of_year']
+    X= feature_vector_df[new_feature_optimal]
+    y=feature_vector_df['load_shortfall_3h']
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    X_standardise = pd.DataFrame(X_scaled,columns=X.columns)
+    feature_vector_df = pd.concat([X_standardise, y], axis = 1)
+
     # ------------------------------------------------------------------------
 
-    return predict_vector
+    return feature_vector_df
 
 def load_model(path_to_model:str):
     """Adapter function to load our pretrained model into memory.
@@ -86,7 +131,7 @@ def load_model(path_to_model:str):
     any auxiliary functions required to process your model's artifacts.
 """
 
-def make_prediction(data, model):
+def make_prediction(data, RF_model):
     """Prepare request data for model prediction.
 
     Parameters
@@ -105,6 +150,6 @@ def make_prediction(data, model):
     # Data preprocessing.
     prep_data = _preprocess_data(data)
     # Perform prediction with model and preprocessed data.
-    prediction = model.predict(prep_data)
+    prediction = RF_model.predict(prep_data)
     # Format as list for output standardisation.
     return prediction[0].tolist()
